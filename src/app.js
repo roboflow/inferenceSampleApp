@@ -73,7 +73,7 @@ function setStatus(text) {
  * @param {Function} [options.onData] - Callback for data channel messages
  * @returns {Promise<RFWebRTCConnection>} WebRTC connection object
  */
-async function connectToRoboflow(options = {}) {
+async function connectWebcamToRoboflowWebRTC(options = {}) {
   const {
     workflowSpec = WORKFLOW_SPEC,
     onData
@@ -116,7 +116,7 @@ async function start() {
 
   try {
     // Connect to Roboflow via backend proxy
-    const connection = await connectToRoboflow({
+    const connection = await connectWebcamToRoboflowWebRTC({
       onData: (data) => {
         console.log("[Data]", data);
       }
