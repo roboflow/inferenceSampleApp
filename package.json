@@ -1,0 +1,29 @@
+{
+  "name": "roboflow-webrtc-secure-example",
+  "version": "1.0.0",
+  "description": "Secure WebRTC streaming example using Roboflow InferenceJS with backend proxy",
+  "type": "module",
+  "scripts": {
+    "dev": "node server.js",
+    "build": "vite build",
+    "start": "NODE_ENV=production node server.js"
+  },
+  "keywords": [
+    "roboflow",
+    "webrtc",
+    "computer-vision",
+    "streaming",
+    "inference"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "inferencejs": "github:roboflow/inferencejs#tony/videostream",
+    "express": "^4.18.2",
+    "dotenv": "^16.3.1",
+    "cors": "^2.8.5"
+  },
+  "devDependencies": {
+    "vite": "^5.3.3"
+  }
+}
