@@ -32,7 +32,8 @@ const WORKFLOW_SPEC = {
       type: "roboflow_core/roboflow_instance_segmentation_model@v2",
       name: "model",
       images: "$inputs.image",
-      model_id: "microsoft-coco-instance-segmentation/3"
+      // model_id: "microsoft-coco-instance-segmentation/3"
+      model_id: "rfdetr-nano"
     },
     {
       type: "roboflow_core/mask_visualization@v1",
@@ -84,19 +85,28 @@ async function connectWebcamToRoboflowWebRTC(options = {}) {
 
   // Establish WebRTC connection
   const connection = await webrtc.use_stream({
-    source: streams.useCamera({
-      facingMode: "environment",
-      width: 1280,
-      height: 720
+    source: await streams.useCamera({
+      video: {
+        facingMode: { ideal: "environment" },
+        width: { ideal: 640 },
+        height: { ideal: 480 },
+        frameRate: { ideal: 30, max: 30 }
+      },
+      audio: false
     }),
     connector: connector,
     wrtcparams: {
-      workflowSpec: workflowSpec,
+      // workflowSpec: workflowSpec,
+      workspaceName: "meh-dq9yn",
+      workflowId: "custom-workflow-2",
       imageInputName: "image",
-      streamOutputNames: ["output_image"]
+      streamOutputNames: ["polygon_visualization"]
     },
-    onData: onData
-  });
+    onData: onData,
+    options: {
+      disableInputStreamDownscaling: true
+    }
+});
 
   return connection;
 }

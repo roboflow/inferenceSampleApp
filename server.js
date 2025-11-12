@@ -46,9 +46,13 @@ app.post('/api/init-webrtc', async (req, res) => {
       });
     }
 
-    if (!wrtcparams || !wrtcparams.workflowSpec) {
+    // Validate workflow configuration (either spec or identifier)
+    const hasWorkflowSpec = wrtcparams?.workflowSpec;
+    const hasWorkflowIdentifier = wrtcparams?.workspaceName && wrtcparams?.workflowId;
+
+    if (!wrtcparams || (!hasWorkflowSpec && !hasWorkflowIdentifier)) {
       return res.status(400).json({
-        error: 'Missing required field: wrtcparams.workflowSpec'
+        error: 'Missing required field: wrtcparams must contain either workflowSpec OR (workspaceName + workflowId)'
       });
     }
 
@@ -72,10 +76,15 @@ app.post('/api/init-webrtc', async (req, res) => {
       serverUrl
     });
 
+    // Build workflow configuration (either spec or identifier)
+    const workflowConfig = hasWorkflowSpec
+      ? { workflowSpec: wrtcparams.workflowSpec }
+      : { workspaceName: wrtcparams.workspaceName, workflowId: wrtcparams.workflowId };
+
     // Call Roboflow API
     const answer = await client.initialise_webrtc_worker({
       offer,
-      workflowSpec: wrtcparams.workflowSpec,
+      ...workflowConfig,
       config: {
         imageInputName: wrtcparams.imageInputName,
         streamOutputNames: wrtcparams.streamOutputNames,
