@@ -8,7 +8,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { InferenceHTTPClient } from 'inferencejs/inference-api';
+import { InferenceHTTPClient } from 'inferencejs-client';
 
 // Load environment variables
 dotenv.config();

@@ -5,9 +5,7 @@
  * All communication with Roboflow is proxied through the backend server.
  */
 
-import { connectors } from 'inferencejs/inference-api';
-import * as streams from 'inferencejs/streams';
-import * as webrtc from 'inferencejs/webrtc';
+import { connectors, webrtc, streams } from 'inferencejs-client';
 
 // Get DOM elements
 const startBtn = document.getElementById("startBtn");
@@ -20,41 +18,51 @@ let activeConnection = null;
 
 // Workflow specification for instance segmentation demo
 const WORKFLOW_SPEC = {
-  version: "1.0",
-  inputs: [
-    {
-      type: "InferenceImage",
-      name: "image"
-    }
+  "version": "1.0",
+  "inputs": [
+      {
+          "type": "InferenceImage",
+          "name": "image"
+      }
   ],
-  steps: [
-    {
-      type: "roboflow_core/roboflow_instance_segmentation_model@v2",
-      name: "model",
-      images: "$inputs.image",
-      // model_id: "microsoft-coco-instance-segmentation/3"
-      model_id: "rfdetr-nano"
-    },
-    {
-      type: "roboflow_core/mask_visualization@v1",
-      name: "mask_visualization",
-      image: "$inputs.image",
-      predictions: "$steps.model.predictions"
-    },
-    {
-      type: "roboflow_core/label_visualization@v1",
-      name: "label_visualization",
-      image: "$steps.mask_visualization.image",
-      predictions: "$steps.model.predictions"
-    }
+  "steps": [
+      {
+          "type": "roboflow_core/seg-preview@v1",
+          "name": "seg_preview",
+          "images": "$inputs.image",
+          "class_names": [
+              "person",
+              "cell phone",
+              "cup"
+          ]
+      },
+      {
+          "type": "roboflow_core/mask_visualization@v1",
+          "name": "mask_visualization",
+          "image": "$inputs.image",
+          "predictions": "$steps.seg_preview.predictions"
+      },
+      {
+          "type": "roboflow_core/label_visualization@v1",
+          "name": "label_visualization",
+          "image": "$steps.mask_visualization.image",
+          "predictions": "$steps.seg_preview.predictions",
+          "text": "Class and Confidence"
+      }
   ],
-  outputs: [
-    {
-      type: "JsonField",
-      name: "output_image",
-      coordinates_system: "own",
-      selector: "$steps.label_visualization.image"
-    }
+  "outputs": [
+      {
+          "type": "JsonField",
+          "name": "label_visualization",
+          "coordinates_system": "own",
+          "selector": "$steps.label_visualization.image"
+      },
+      {
+          "type": "JsonField",
+          "name": "seg_preview",
+          "coordinates_system": "own",
+          "selector": "$steps.seg_preview.predictions"
+      }
   ]
 };
 
@@ -96,11 +104,11 @@ async function connectWebcamToRoboflowWebRTC(options = {}) {
     }),
     connector: connector,
     wrtcparams: {
-      // workflowSpec: workflowSpec,
-      workspaceName: "meh-dq9yn",
-      workflowId: "custom-workflow-2",
+      workflowSpec: workflowSpec,
+      // workspaceName: "meh-dq9yn",
+      // workflowId: "custom-workflow-2",
       imageInputName: "image",
-      streamOutputNames: ["polygon_visualization"]
+      streamOutputNames: ["label_visualization"]
     },
     onData: onData,
     options: {
