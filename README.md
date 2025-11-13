@@ -28,13 +28,13 @@ Browser                    Your Server                 Roboflow API
 ### 1. Install the client library
 
 ```bash
-npm install inferencejs-client
+npm install @roboflow/inference-sdk
 ```
 
 ### 2. Frontend: Connect to your webcam and start streaming
 
 ```javascript
-import { connectors, webrtc, streams } from 'inferencejs-client';
+import { connectors, webrtc, streams } from '@roboflow/inference-sdk';
 
 // Define your workflow specification
 const workflowSpec = {
@@ -64,7 +64,7 @@ const connector = connectors.withProxyUrl('/api/init-webrtc');
 const connection = await webrtc.useStream({
   source: await streams.useCamera({ video: true, audio: false }),
   connector: connector,
-  wrtcparams: {
+  wrtcParams: {
     workflowSpec: workflowSpec,
     imageInputName: "image",
     streamOutputNames: ["output_image"]
@@ -82,13 +82,13 @@ Your backend needs to proxy the WebRTC initialization request to the Roboflow in
 
 ```javascript
 import express from 'express';
-import { InferenceHTTPClient } from 'inferencejs-client';
+import { InferenceHTTPClient } from '@roboflow/inference-sdk';
 
 const app = express();
 app.use(express.json());
 
 app.post('/api/init-webrtc', async (req, res) => {
-  const { offer, wrtcparams } = req.body;
+  const { offer, wrtcParams } = req.body;
 
   // Initialize client with your API key (stored securely on the server)
   const client = InferenceHTTPClient.init({
@@ -98,10 +98,10 @@ app.post('/api/init-webrtc', async (req, res) => {
   // Forward the request to Roboflow
   const answer = await client.initializeWebrtcWorker({
     offer,
-    workflowSpec: wrtcparams.workflowSpec,
+    workflowSpec: wrtcParams.workflowSpec,
     config: {
-      imageInputName: wrtcparams.imageInputName,
-      streamOutputNames: wrtcparams.streamOutputNames
+      imageInputName: wrtcParams.imageInputName,
+      streamOutputNames: wrtcParams.streamOutputNames
     }
   });
 

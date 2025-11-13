@@ -8,7 +8,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { InferenceHTTPClient } from 'inferencejs-client';
+import { InferenceHTTPClient } from '@roboflow/inference-sdk';
 
 // Load environment variables
 dotenv.config();
@@ -28,7 +28,7 @@ app.use(express.json());
  *
  * Request body:
  *   - offer: { sdp, type }
- *   - wrtcparams: { workflowSpec, imageInputName, streamOutputNames, ... }
+ *   - wrtcParams: { workflowSpec, imageInputName, streamOutputNames, ... }
  *
  * Response:
  *   - sdp: string
@@ -37,7 +37,7 @@ app.use(express.json());
  */
 app.post('/api/init-webrtc', async (req, res) => {
   try {
-    const { offer, wrtcparams } = req.body;
+    const { offer, wrtcParams } = req.body;
 
     // Validate request
     if (!offer || !offer.sdp || !offer.type) {
@@ -47,12 +47,12 @@ app.post('/api/init-webrtc', async (req, res) => {
     }
 
     // Validate workflow configuration (either spec or identifier)
-    const hasWorkflowSpec = wrtcparams?.workflowSpec;
-    const hasWorkflowIdentifier = wrtcparams?.workspaceName && wrtcparams?.workflowId;
+    const hasWorkflowSpec = wrtcParams?.workflowSpec;
+    const hasWorkflowIdentifier = wrtcParams?.workspaceName && wrtcParams?.workflowId;
 
-    if (!wrtcparams || (!hasWorkflowSpec && !hasWorkflowIdentifier)) {
+    if (!wrtcParams || (!hasWorkflowSpec && !hasWorkflowIdentifier)) {
       return res.status(400).json({
-        error: 'Missing required field: wrtcparams must contain either workflowSpec OR (workspaceName + workflowId)'
+        error: 'Missing required field: wrtcParams must contain either workflowSpec OR (workspaceName + workflowId)'
       });
     }
 
@@ -78,19 +78,19 @@ app.post('/api/init-webrtc', async (req, res) => {
 
     // Build workflow configuration (either spec or identifier)
     const workflowConfig = hasWorkflowSpec
-      ? { workflowSpec: wrtcparams.workflowSpec }
-      : { workspaceName: wrtcparams.workspaceName, workflowId: wrtcparams.workflowId };
+      ? { workflowSpec: wrtcParams.workflowSpec }
+      : { workspaceName: wrtcParams.workspaceName, workflowId: wrtcParams.workflowId };
 
     // Call Roboflow API
     const answer = await client.initializeWebrtcWorker({
       offer,
       ...workflowConfig,
       config: {
-        imageInputName: wrtcparams.imageInputName,
-        streamOutputNames: wrtcparams.streamOutputNames,
-        dataOutputNames: wrtcparams.dataOutputNames,
-        workflowParameters: wrtcparams.workflowParameters,
-        threadPoolWorkers: wrtcparams.threadPoolWorkers
+        imageInputName: wrtcParams.imageInputName,
+        streamOutputNames: wrtcParams.streamOutputNames,
+        dataOutputNames: wrtcParams.dataOutputNames,
+        workflowParameters: wrtcParams.workflowParameters,
+        threadPoolWorkers: wrtcParams.threadPoolWorkers
       }
     });
 

@@ -5,7 +5,7 @@
  * All communication with Roboflow is proxied through the backend server.
  */
 
-import { connectors, webrtc, streams } from 'inferencejs-client';
+import { connectors, webrtc, streams } from '@roboflow/inference-sdk';
 
 // Get DOM elements
 const startBtn = document.getElementById("startBtn");
@@ -114,7 +114,7 @@ async function connectWebcamToRoboflowWebRTC(options = {}) {
       audio: false
     }),
     connector: connector,
-    wrtcparams: {
+    wrtcParams: {
       workflowSpec: workflowSpec,
       // workspaceName: "meh-dq9yn",
       // workflowId: "custom-workflow-2",
