@@ -67,7 +67,12 @@ const connection = await webrtc.useStream({
   wrtcParams: {
     workflowSpec: workflowSpec,
     imageInputName: "image",
-    streamOutputNames: ["output_image"]
+    streamOutputNames: ["output_image"],
+    dataOutputNames: ["your_data_output"]  // Optional: for receiving data outputs
+  },
+  onData: (data) => {
+    // Handle data outputs from your workflow (e.g., detection counts, metrics)
+    console.log("Received data:", data);
   }
 });
 
