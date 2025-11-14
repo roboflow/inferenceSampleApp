@@ -16,7 +16,14 @@ It showcases how you can stream a video from your webcam through your custom com
 
 ## How to Integrate
 
-https://www.loom.com/share/48b7c442a69c49e081d0dbec49e1ab57
+<div>
+  <a href="https://www.loom.com/share/48b7c442a69c49e081d0dbec49e1ab57">
+    <p>Video Streaming on the web with Roboflow - Watch Video</p>
+  </a>
+  <a href="https://www.loom.com/share/48b7c442a69c49e081d0dbec49e1ab57">
+    <img style="max-width:300px;" src="https://cdn.loom.com/sessions/thumbnails/48b7c442a69c49e081d0dbec49e1ab57-55cc349aea83cfd2-full-play.gif#t=0.1">
+  </a>
+</div>
 
 
 ```
