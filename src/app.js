@@ -33,7 +33,7 @@ function getConfig() {
     workspaceName: configInputs.workspaceName?.value?.trim() || "your-workspace",
     workflowId: configInputs.workflowId?.value?.trim() || "your-workflow",
     imageInputName: configInputs.imageInputName?.value?.trim() || "image",
-    streamOutputNames: (configInputs.streamOutputNames?.value?.trim() || "output_image")
+    streamOutputNames: (configInputs.streamOutputNames?.value?.trim() || "label_visualization")
       .split(",").map(s => s.trim()).filter(Boolean),
     dataOutputNames: (configInputs.dataOutputNames?.value?.trim() || "predictions")
       .split(",").map(s => s.trim()).filter(Boolean)
