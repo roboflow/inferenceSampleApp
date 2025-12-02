@@ -214,24 +214,120 @@
             margin-top: 0;
         }
 
+        /* Tab bar */
+        .tab-bar {
+            display: flex;
+            gap: 0;
+            margin-bottom: 16px;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+        .tab-btn {
+            flex: 1;
+            padding: 10px 12px;
+            border: none;
+            background: transparent;
+            color: inherit;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            opacity: 0.6;
+            transition: all 0.15s ease;
+            border-radius: 0;
+        }
+        .tab-btn:hover {
+            opacity: 0.8;
+            background: var(--border);
+        }
+        .tab-btn.active {
+            opacity: 1;
+            background: var(--accent);
+            color: white;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .example-info {
+            font-size: 12px;
+            opacity: 0.7;
+            margin-bottom: 12px;
+            padding: 10px 12px;
+            background: var(--border);
+            border-radius: 6px;
+            line-height: 1.5;
+        }
+        .example-info code {
+            font-family: ui-monospace, Monaco, Consolas, monospace;
+            background: rgba(0,0,0,0.1);
+            padding: 1px 4px;
+            border-radius: 3px;
+        }
+
         .video-container {
             background: #000;
             border-radius: 12px;
             overflow: hidden;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            aspect-ratio: 16 / 9;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .video-container video {
-            object-fit: contain;
         }
         video {
             width: 100%;
             height: auto;
             display: block;
         }
+
+        /* Data Channel Preview */
+        .data-preview {
+            margin-top: 12px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .data-preview-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 12px;
+            font-size: 12px;
+            font-weight: 600;
+            opacity: 0.7;
+            border-bottom: 1px solid var(--border);
+        }
+        .data-preview-header span {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .data-preview-badge {
+            font-size: 10px;
+            padding: 2px 6px;
+            background: var(--accent);
+            color: white;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+        .data-preview-body {
+            padding: 10px 12px;
+            max-height: 150px;
+            overflow-y: auto;
+            font-family: ui-monospace, Monaco, Consolas, monospace;
+            font-size: 11px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-break: break-all;
+            color: inherit;
+            opacity: 0.8;
+        }
+        .data-preview-body:empty::before {
+            content: "Waiting for data...";
+            opacity: 0.4;
+            font-style: italic;
+        }
+
         .info {
             margin-top: 24px;
             padding: 16px;
@@ -303,6 +399,14 @@
                     <video id="video" autoplay playsinline muted></video>
                 </div>
 
+                <div class="data-preview">
+                    <div class="data-preview-header">
+                        <span>📡 Data Channel</span>
+                        <span class="data-preview-badge" id="dataCount">0</span>
+                    </div>
+                    <div class="data-preview-body" id="dataPreview"></div>
+                </div>
+
                 <div class="info">
                     <div class="security-badge">
                         🔒 Secure Mode
@@ -332,31 +436,94 @@
                         </svg>
                     </div>
                     <div class="config-body">
-                        <div class="config-section-title">Workflow</div>
-                        <div class="config-grid">
-                            <div class="config-field">
-                                <label for="workspaceName">Workspace Name</label>
-                                <input type="text" id="workspaceName" placeholder="your-workspace" value="balthasars-workspace">
+                        <!-- Tab Bar -->
+                        <div class="tab-bar">
+                            <button type="button" class="tab-btn active" data-tab="example">Example (RF-DETR)</button>
+                            <button type="button" class="tab-btn" data-tab="custom">Custom Workflow</button>
+                        </div>
+
+                        <!-- Example Tab -->
+                        <div class="tab-content active" id="tab-example">
+                            <div class="example-info">
+                                Uses <code>rfdetr-nano</code> for object detection with bounding box visualization. No setup required.
                             </div>
-                            <div class="config-field">
-                                <label for="workflowId">Workflow ID</label>
-                                <input type="text" id="workflowId" placeholder="my-workflow" value="custom-workflow-93">
+                            <div class="config-section-title">I/O Mapping</div>
+                            <div class="config-grid">
+                            <div class="config-field full-width">
+                                <label for="exampleStreamOutput">Stream Output</label>
+                                <select id="exampleStreamOutput">
+                                    <option value="labels">Labels + Bounding Boxes</option>
+                                    <option value="blur">Blur Visualization</option>
+                                </select>
+                            </div>
                             </div>
                         </div>
 
-                        <div class="config-section-title">I/O Mapping</div>
+                        <!-- Custom Workflow Tab -->
+                        <div class="tab-content" id="tab-custom">
+                            <div class="config-section-title">Workflow</div>
+                            <div class="config-grid">
+                                <div class="config-field full-width">
+                                    <label for="workspaceName">Workspace Name</label>
+                                    <input type="text" id="workspaceName" placeholder="your-workspace">
+                                </div>
+                                <div class="config-field full-width">
+                                    <label for="workflowId">Workflow ID</label>
+                                    <input type="text" id="workflowId" placeholder="my-workflow">
+                                </div>
+                            </div>
+
+                            <div class="config-section-title">I/O Mapping</div>
+                            <div class="config-grid">
+                                <div class="config-field full-width">
+                                    <label for="imageInputName">Image Input Name</label>
+                                    <input type="text" id="imageInputName" placeholder="image" value="image">
+                                </div>
+                                <div class="config-field full-width">
+                                    <label for="streamOutputNames">Stream Output Names</label>
+                                    <input type="text" id="streamOutputNames" placeholder="output_image">
+                                </div>
+                                <div class="config-field full-width">
+                                    <label for="dataOutputNames">Data Output Names</label>
+                                    <input type="text" id="dataOutputNames" placeholder="predictions">
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- Stream Settings Panel -->
+                <div class="config-panel open" id="streamPanel">
+                    <div class="config-header" onclick="document.getElementById('streamPanel').classList.toggle('open')">
+                        <span>🌐 Stream Settings</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
+                        </svg>
+                    </div>
+                    <div class="config-body">
+                        <div class="config-section-title">Server</div>
                         <div class="config-grid">
                             <div class="config-field full-width">
-                                <label for="imageInputName">Image Input Name</label>
-                                <input type="text" id="imageInputName" placeholder="image" value="image">
+                                <label for="requestedRegion">Region</label>
+                                <select id="requestedRegion">
+                                    <option value="us">US</option>
+                                    <option value="eu">EU</option>
+                                    <option value="ap">AP</option>
+                                </select>
                             </div>
                             <div class="config-field full-width">
-                                <label for="streamOutputNames">Stream Output Names</label>
-                                <input type="text" id="streamOutputNames" placeholder="label_visualization" value="label_visualization">
+                                <label for="requestedPlan">Plan</label>
+                                <select id="requestedPlan">
+                                    <option value="webrtc-gpu-small">GPU Small</option>
+                                </select>
                             </div>
                             <div class="config-field full-width">
-                                <label for="dataOutputNames">Data Output Names</label>
-                                <input type="text" id="dataOutputNames" placeholder="predictions" value="predictions">
+                                <label for="processingTimeout">Timeout</label>
+                                <select id="processingTimeout">
+                                    <option value="600">10 minutes</option>
+                                    <option value="3600">60 minutes</option>
+                                </select>
                             </div>
                         </div>
                     </div>

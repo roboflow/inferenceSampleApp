@@ -90,12 +90,17 @@ app.post('/api/init-webrtc', async (req, res) => {
         streamOutputNames: wrtcParams.streamOutputNames,
         dataOutputNames: wrtcParams.dataOutputNames,
         workflowParameters: wrtcParams.workflowParameters,
-        threadPoolWorkers: wrtcParams.threadPoolWorkers
+        threadPoolWorkers: wrtcParams.threadPoolWorkers,
+        processingTimeout: wrtcParams.processingTimeout,
+        requestedPlan: wrtcParams.requestedPlan,
+        requestedRegion: wrtcParams.requestedRegion
       }
     });
 
     console.log('[Server] WebRTC worker initialized:', {
-      pipelineId: answer?.context?.pipeline_id
+      pipelineId: answer?.context?.pipeline_id,
+      region: wrtcParams.requestedRegion,
+      plan: wrtcParams.requestedPlan
     });
 
     // Return answer to frontend

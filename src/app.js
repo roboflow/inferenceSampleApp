@@ -12,8 +12,13 @@ const startBtn = document.getElementById("startBtn");
 const stopBtn = document.getElementById("stopBtn");
 const statusEl = document.getElementById("status");
 const videoEl = document.getElementById("video");
+const dataPreviewEl = document.getElementById("dataPreview");
+const dataCountEl = document.getElementById("dataCount");
 
-// Config inputs - Workflow
+// Data channel message counter
+let dataMessageCount = 0;
+
+// Config inputs - Workflow (Custom tab)
 const configInputs = {
   workspaceName: document.getElementById("workspaceName"),
   workflowId: document.getElementById("workflowId"),
@@ -21,6 +26,25 @@ const configInputs = {
   streamOutputNames: document.getElementById("streamOutputNames"),
   dataOutputNames: document.getElementById("dataOutputNames")
 };
+
+// Config inputs - Example tab
+const exampleInputs = {
+  streamOutput: document.getElementById("exampleStreamOutput")
+};
+
+// Config inputs - Server settings
+const serverInputs = {
+  requestedRegion: document.getElementById("requestedRegion"),
+  requestedPlan: document.getElementById("requestedPlan"),
+  processingTimeout: document.getElementById("processingTimeout")
+};
+
+// Tab elements
+const tabBtns = document.querySelectorAll(".tab-btn");
+const tabContents = document.querySelectorAll(".tab-content");
+
+// Current workflow mode: "example" or "custom"
+let workflowMode = "example";
 
 // Config inputs - Camera
 const cameraInputs = {
@@ -37,18 +61,71 @@ let activeConnection = null;
 let cameraCapabilities = null;
 
 /**
- * Get current workflow configuration from form inputs
+ * Get server configuration
+ */
+function getServerConfig() {
+  return {
+    requestedRegion: serverInputs.requestedRegion?.value || "us",
+    requestedPlan: serverInputs.requestedPlan?.value || "webrtc-gpu-small",
+    processingTimeout: parseInt(serverInputs.processingTimeout?.value) || 600
+  };
+}
+
+/**
+ * Get current workflow configuration based on selected mode
  */
 function getConfig() {
-  return {
-    workspaceName: configInputs.workspaceName?.value?.trim() || "your-workspace",
-    workflowId: configInputs.workflowId?.value?.trim() || "your-workflow",
-    imageInputName: configInputs.imageInputName?.value?.trim() || "image",
-    streamOutputNames: (configInputs.streamOutputNames?.value?.trim() || "label_visualization")
-      .split(",").map(s => s.trim()).filter(Boolean),
-    dataOutputNames: (configInputs.dataOutputNames?.value?.trim() || "predictions")
-      .split(",").map(s => s.trim()).filter(Boolean)
-  };
+  const serverConfig = getServerConfig();
+  
+  if (workflowMode === "example") {
+    // Example mode: use hardcoded workflow spec
+    const streamOutput = exampleInputs.streamOutput?.value || "labels";
+    return {
+      mode: "example",
+      workflowSpec: WORKFLOW_SPEC,
+      imageInputName: "image",
+      streamOutputNames: [streamOutput],
+      dataOutputNames: ["count"],
+      ...serverConfig
+    };
+  } else {
+    // Custom mode: use user-provided workspace + workflow ID
+    const workspaceName = configInputs.workspaceName?.value?.trim();
+    const workflowId = configInputs.workflowId?.value?.trim();
+    
+    if (!workspaceName || !workflowId) {
+      throw new Error("Please enter both Workspace Name and Workflow ID");
+    }
+    
+    return {
+      mode: "custom",
+      workspaceName,
+      workflowId,
+      imageInputName: configInputs.imageInputName?.value?.trim() || "image",
+      streamOutputNames: (configInputs.streamOutputNames?.value?.trim() || "output_image")
+        .split(",").map(s => s.trim()).filter(Boolean),
+      dataOutputNames: (configInputs.dataOutputNames?.value?.trim() || "predictions")
+        .split(",").map(s => s.trim()).filter(Boolean),
+      ...serverConfig
+    };
+  }
+}
+
+/**
+ * Switch workflow tab
+ */
+function switchTab(tabName) {
+  workflowMode = tabName;
+  
+  // Update tab buttons
+  tabBtns.forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.tab === tabName);
+  });
+  
+  // Update tab content
+  tabContents.forEach(content => {
+    content.classList.toggle("active", content.id === `tab-${tabName}`);
+  });
 }
 
 /**
@@ -287,64 +364,68 @@ function setDefaultCameraOptions() {
   cameraInputs.fpsSelect.disabled = false;
 }
 
-// Workflow specification for instance segmentation demo
+// Workflow specification for object detection demo
 const WORKFLOW_SPEC = {
   "version": "1.0",
   "inputs": [
-      {
-          "type": "InferenceImage",
-          "name": "image"
-      }
+    {
+      "type": "InferenceImage",
+      "name": "image"
+    }
   ],
   "steps": [
-      {
-          "type": "roboflow_core/roboflow_object_detection_model@v2",
-          "name": "model",
-          "images": "$inputs.image",
-          "model_id": "rfdetr-medium"
-      },
-      {
-          "type": "roboflow_core/blur_visualization@v1",
-          "name": "blur_visualization",
-          "image": "$inputs.image",
-          "predictions": "$steps.model.predictions"
-      },
-      {
-          "type": "roboflow_core/property_definition@v1",
-          "name": "property_definition",
-          "data": "$steps.model.predictions",
-          "operations": [
-              {
-                  "type": "SequenceLength"
-              }
-          ]
-      },
-      {
-          "type": "roboflow_core/bounding_box_visualization@v1",
-          "name": "bounding_box_visualization",
-          "image": "$inputs.image",
-          "predictions": "$steps.model.predictions"
-      }
+    {
+      "type": "roboflow_core/roboflow_object_detection_model@v2",
+      "name": "model",
+      "images": "$inputs.image",
+      "model_id": "rfdetr-nano"
+    },
+    {
+      "type": "roboflow_core/blur_visualization@v1",
+      "name": "blur_visualization",
+      "image": "$inputs.image",
+      "predictions": "$steps.model.predictions"
+    },
+    {
+      "type": "roboflow_core/bounding_box_visualization@v1",
+      "name": "bounding_box_visualization",
+      "image": "$inputs.image",
+      "predictions": "$steps.model.predictions"
+    },
+    {
+      "type": "roboflow_core/label_visualization@v1",
+      "name": "label_visualization",
+      "image": "$steps.bounding_box_visualization.image",
+      "predictions": "$steps.model.predictions"
+    },
+    {
+      "type": "roboflow_core/property_definition@v1",
+      "name": "property_definition",
+      "data": "$steps.model.predictions",
+      "operations": [
+        { "type": "SequenceLength" }
+      ]
+    }
   ],
   "outputs": [
-      {
-          "type": "JsonField",
-          "name": "blur",
-          "coordinates_system": "own",
-          "selector": "$steps.blur_visualization.image"
-      },
-      {
-          "type": "JsonField",
-          "name": "countis",
-          "coordinates_system": "own",
-          "selector": "$steps.property_definition.output"
-      },
-      {
-          "type": "JsonField",
-          "name": "bb",
-          "coordinates_system": "own",
-          "selector": "$steps.bounding_box_visualization.image"
-      }
+    {
+      "type": "JsonField",
+      "name": "blur",
+      "coordinates_system": "own",
+      "selector": "$steps.blur_visualization.image"
+    },
+    {
+      "type": "JsonField",
+      "name": "labels",
+      "coordinates_system": "own",
+      "selector": "$steps.label_visualization.image"
+    },
+    {
+      "type": "JsonField",
+      "name": "count",
+      "coordinates_system": "own",
+      "selector": "$steps.property_definition.output"
+    }
   ]
 };
 
@@ -391,6 +472,20 @@ async function connectWebcamToRoboflowWebRTC(options = {}) {
     videoConstraints.facingMode = { ideal: "environment" };
   }
 
+  // Build wrtcParams based on mode
+  const baseParams = {
+    imageInputName: config.imageInputName,
+    streamOutputNames: config.streamOutputNames,
+    dataOutputNames: config.dataOutputNames,
+    requestedRegion: config.requestedRegion,
+    requestedPlan: config.requestedPlan,
+    processingTimeout: config.processingTimeout
+  };
+
+  const wrtcParams = config.mode === "example"
+    ? { ...baseParams, workflowSpec: config.workflowSpec }
+    : { ...baseParams, workspaceName: config.workspaceName, workflowId: config.workflowId };
+
   // Establish WebRTC connection
   const connection = await webrtc.useStream({
     source: await streams.useCamera({
@@ -398,13 +493,7 @@ async function connectWebcamToRoboflowWebRTC(options = {}) {
       audio: false
     }),
     connector: connector,
-    wrtcParams: {
-      workspaceName: config.workspaceName,
-      workflowId: config.workflowId,
-      imageInputName: config.imageInputName,
-      streamOutputNames: config.streamOutputNames,
-      dataOutputNames: config.dataOutputNames
-    },
+    wrtcParams: wrtcParams,
     onData: onData,
     options: {
       disableInputStreamDownscaling: true
@@ -432,6 +521,10 @@ async function start() {
     const connection = await connectWebcamToRoboflowWebRTC({
       onData: (data) => {
         console.log("[Data]", data);
+        // Update data preview
+        dataMessageCount++;
+        dataCountEl.textContent = dataMessageCount;
+        dataPreviewEl.textContent = JSON.stringify(data, null, 2);
       }
     });
 
@@ -495,12 +588,23 @@ async function stop() {
     startBtn.disabled = false;
     stopBtn.disabled = true;
     setStatus("Idle");
+    // Reset data preview
+    dataMessageCount = 0;
+    dataCountEl.textContent = "0";
+    dataPreviewEl.textContent = "";
   }
 }
 
 // Attach event listeners
 startBtn.addEventListener("click", start);
 stopBtn.addEventListener("click", stop);
+
+// Tab switching
+tabBtns.forEach(btn => {
+  btn.addEventListener("click", () => {
+    switchTab(btn.dataset.tab);
+  });
+});
 
 // Camera selection change handler
 cameraInputs.cameraSelect.addEventListener("change", async (e) => {
