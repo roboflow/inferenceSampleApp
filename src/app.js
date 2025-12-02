@@ -13,8 +13,32 @@ const stopBtn = document.getElementById("stopBtn");
 const statusEl = document.getElementById("status");
 const videoEl = document.getElementById("video");
 
+// Config inputs
+const configInputs = {
+  workspaceName: document.getElementById("workspaceName"),
+  workflowId: document.getElementById("workflowId"),
+  imageInputName: document.getElementById("imageInputName"),
+  streamOutputNames: document.getElementById("streamOutputNames"),
+  dataOutputNames: document.getElementById("dataOutputNames")
+};
+
 // Track active connection
 let activeConnection = null;
+
+/**
+ * Get current configuration from form inputs
+ */
+function getConfig() {
+  return {
+    workspaceName: configInputs.workspaceName?.value?.trim() || "your-workspace",
+    workflowId: configInputs.workflowId?.value?.trim() || "your-workflow",
+    imageInputName: configInputs.imageInputName?.value?.trim() || "image",
+    streamOutputNames: (configInputs.streamOutputNames?.value?.trim() || "output_image")
+      .split(",").map(s => s.trim()).filter(Boolean),
+    dataOutputNames: (configInputs.dataOutputNames?.value?.trim() || "predictions")
+      .split(",").map(s => s.trim()).filter(Boolean)
+  };
+}
 
 // Workflow specification for instance segmentation demo
 const WORKFLOW_SPEC = {
@@ -94,10 +118,11 @@ function setStatus(text) {
  * @returns {Promise<RFWebRTCConnection>} WebRTC connection object
  */
 async function connectWebcamToRoboflowWebRTC(options = {}) {
-  const {
-    workflowSpec = WORKFLOW_SPEC,
-    onData
-  } = options;
+  const { onData } = options;
+
+  // Get configuration from form
+  const config = getConfig();
+  console.log("[Config] Using:", config);
 
   // Create connector that uses backend proxy (keeps API key secure)
   const connector = connectors.withProxyUrl('/api/init-webrtc');
@@ -115,19 +140,17 @@ async function connectWebcamToRoboflowWebRTC(options = {}) {
     }),
     connector: connector,
     wrtcParams: {
-      // workflowSpec: workflowSpec,
-
-      workspaceName: "meh-dq9yn",
-      workflowId: "custom-workflow-2",
-      imageInputName: "image",
-      streamOutputNames: ["label_visualization"],
-      dataOutputNames: ["counts"]
+      workspaceName: config.workspaceName,
+      workflowId: config.workflowId,
+      imageInputName: config.imageInputName,
+      streamOutputNames: config.streamOutputNames,
+      dataOutputNames: config.dataOutputNames
     },
     onData: onData,
     options: {
       disableInputStreamDownscaling: true
     }
-});
+  });
 
   return connection;
 }
