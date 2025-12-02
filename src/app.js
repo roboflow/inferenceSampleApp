@@ -78,7 +78,6 @@ function getConfig() {
   const serverConfig = getServerConfig();
   
   if (workflowMode === "example") {
-    // Example mode: use hardcoded workflow spec
     const streamOutput = exampleInputs.streamOutput?.value || "labels";
     return {
       mode: "example",
@@ -89,7 +88,6 @@ function getConfig() {
       ...serverConfig
     };
   } else {
-    // Custom mode: use user-provided workspace + workflow ID
     const workspaceName = configInputs.workspaceName?.value?.trim();
     const workflowId = configInputs.workflowId?.value?.trim();
     
@@ -116,16 +114,8 @@ function getConfig() {
  */
 function switchTab(tabName) {
   workflowMode = tabName;
-  
-  // Update tab buttons
-  tabBtns.forEach(btn => {
-    btn.classList.toggle("active", btn.dataset.tab === tabName);
-  });
-  
-  // Update tab content
-  tabContents.forEach(content => {
-    content.classList.toggle("active", content.id === `tab-${tabName}`);
-  });
+  tabBtns.forEach(btn => btn.classList.toggle("active", btn.dataset.tab === tabName));
+  tabContents.forEach(content => content.classList.toggle("active", content.id === `tab-${tabName}`));
 }
 
 /**
@@ -148,8 +138,7 @@ function getCameraConfig() {
  */
 async function enumerateCameras() {
   try {
-    // Request permission first to get device labels
-    const tempStream = await navigator.mediaDevices.getUserMedia({ video: true });
+  const tempStream = await navigator.mediaDevices.getUserMedia({ video: true });
     tempStream.getTracks().forEach(track => track.stop());
     
     const devices = await navigator.mediaDevices.enumerateDevices();
@@ -157,7 +146,6 @@ async function enumerateCameras() {
     
     console.log("[Camera] Found devices:", cameras);
     
-    // Populate camera dropdown
     cameraInputs.cameraSelect.innerHTML = "";
     
     if (cameras.length === 0) {
@@ -174,7 +162,6 @@ async function enumerateCameras() {
     
     cameraInputs.cameraSelect.disabled = false;
     
-    // Automatically get capabilities for first camera
     if (cameras.length > 0) {
       await getCameraCapabilities(cameras[0].deviceId);
     }
@@ -196,7 +183,6 @@ async function getCameraCapabilities(deviceId) {
   cameraInputs.fpsSelect.disabled = true;
   
   try {
-    // Get a stream from the specific device to access capabilities
     const stream = await navigator.mediaDevices.getUserMedia({
       video: { deviceId: { exact: deviceId } }
     });
@@ -208,19 +194,12 @@ async function getCameraCapabilities(deviceId) {
     console.log("[Camera] Capabilities:", capabilities);
     console.log("[Camera] Current settings:", settings);
     
-    // Store capabilities
     cameraCapabilities = capabilities;
-    
-    // Stop the stream
     stream.getTracks().forEach(t => t.stop());
     
-    // Populate resolution dropdown
     populateResolutions(capabilities, settings);
-    
-    // Populate FPS dropdown
     populateFrameRates(capabilities, settings);
     
-    // Show capability summary
     const summary = [];
     if (capabilities.width && capabilities.height) {
       summary.push(`${capabilities.width.min}×${capabilities.height.min} - ${capabilities.width.max}×${capabilities.height.max}`);
@@ -230,13 +209,10 @@ async function getCameraCapabilities(deviceId) {
     }
     cameraInputs.cameraCaps.textContent = summary.join(" • ") || "Capabilities detected";
     cameraInputs.cameraCaps.classList.remove("loading");
-    
   } catch (err) {
     console.error("[Camera] Failed to get capabilities:", err);
     cameraInputs.cameraCaps.textContent = "Failed to detect capabilities";
     cameraInputs.cameraCaps.classList.remove("loading");
-    
-    // Set default options
     setDefaultCameraOptions();
   }
 }
@@ -263,12 +239,10 @@ function populateResolutions(capabilities, currentSettings) {
   const minW = capabilities.width?.min || 320;
   const minH = capabilities.height?.min || 240;
   
-  // Filter resolutions that fit within camera capabilities
   const availableResolutions = commonResolutions.filter(
     res => res.w >= minW && res.w <= maxW && res.h >= minH && res.h <= maxH
   );
   
-  // Add "Max" option if it's not a standard resolution
   const maxIsStandard = availableResolutions.some(r => r.w === maxW && r.h === maxH);
   if (!maxIsStandard && maxW && maxH) {
     availableResolutions.unshift({ w: maxW, h: maxH, label: `Max (${maxW}×${maxH})` });
@@ -285,14 +259,12 @@ function populateResolutions(capabilities, currentSettings) {
     cameraInputs.resolutionSelect.appendChild(option);
   });
   
-  // Select current or closest resolution
   const currentRes = `${currentSettings.width}x${currentSettings.height}`;
   const hasCurrentRes = availableResolutions.some(r => `${r.w}x${r.h}` === currentRes);
   
   if (hasCurrentRes) {
     cameraInputs.resolutionSelect.value = currentRes;
   } else {
-    // Default to 720p or first available
     const default720 = availableResolutions.find(r => r.w === 1280 && r.h === 720);
     if (default720) {
       cameraInputs.resolutionSelect.value = "1280x720";
@@ -313,15 +285,11 @@ function populateFrameRates(capabilities, currentSettings) {
   const maxFps = capabilities.frameRate?.max || 30;
   const minFps = capabilities.frameRate?.min || 1;
   
-  // Filter FPS values that fit within camera capabilities
   const availableFps = commonFps.filter(fps => fps >= minFps && fps <= maxFps);
   
-  // Add max if not standard
   if (!availableFps.includes(Math.floor(maxFps)) && maxFps > 0) {
     availableFps.unshift(Math.floor(maxFps));
   }
-  
-  // Sort descending
   availableFps.sort((a, b) => b - a);
   
   if (availableFps.length === 0) {
@@ -335,7 +303,6 @@ function populateFrameRates(capabilities, currentSettings) {
     cameraInputs.fpsSelect.appendChild(option);
   });
   
-  // Select current or default to 30fps
   const currentFps = Math.round(currentSettings.frameRate);
   if (availableFps.includes(currentFps)) {
     cameraInputs.fpsSelect.value = currentFps;
@@ -447,32 +414,24 @@ function setStatus(text) {
  */
 async function connectWebcamToRoboflowWebRTC(options = {}) {
   const { onData } = options;
-
-  // Get configuration from forms
   const config = getConfig();
   const cameraConfig = getCameraConfig();
   
   console.log("[Config] Workflow:", config);
   console.log("[Config] Camera:", cameraConfig);
 
-  // Create connector that uses backend proxy (keeps API key secure)
   const connector = connectors.withProxyUrl('/api/init-webrtc');
-
-  // Build video constraints from camera config
   const videoConstraints = {
     width: { ideal: cameraConfig.width },
     height: { ideal: cameraConfig.height },
     frameRate: { ideal: cameraConfig.frameRate, max: cameraConfig.frameRate }
   };
-  
-  // Add device ID if selected
   if (cameraConfig.deviceId) {
     videoConstraints.deviceId = { exact: cameraConfig.deviceId };
   } else {
     videoConstraints.facingMode = { ideal: "environment" };
   }
 
-  // Build wrtcParams based on mode
   const baseParams = {
     imageInputName: config.imageInputName,
     streamOutputNames: config.streamOutputNames,
@@ -486,7 +445,6 @@ async function connectWebcamToRoboflowWebRTC(options = {}) {
     ? { ...baseParams, workflowSpec: config.workflowSpec }
     : { ...baseParams, workspaceName: config.workspaceName, workflowId: config.workflowId };
 
-  // Establish WebRTC connection
   const connection = await webrtc.useStream({
     source: await streams.useCamera({
       video: videoConstraints,
@@ -512,16 +470,13 @@ async function start() {
     return;
   }
 
-  // Disable start button while connecting
   startBtn.disabled = true;
   setStatus("Connecting...");
 
   try {
-    // Connect to Roboflow via backend proxy
     const connection = await connectWebcamToRoboflowWebRTC({
       onData: (data) => {
         console.log("[Data]", data);
-        // Update data preview
         dataMessageCount++;
         dataCountEl.textContent = dataMessageCount;
         dataPreviewEl.textContent = JSON.stringify(data, null, 2);
@@ -529,13 +484,9 @@ async function start() {
     });
 
     activeConnection = connection;
-
-    // Get and display the processed video stream
     const remoteStream = await connection.remoteStream();
     videoEl.srcObject = remoteStream;
     videoEl.controls = false;
-
-    // Ensure video plays
     try {
       await videoEl.play();
       console.log("[UI] Video playing");
@@ -543,7 +494,6 @@ async function start() {
       console.warn("[UI] Autoplay failed:", err);
     }
 
-    // Update UI
     setStatus("Connected - Processing video");
     stopBtn.disabled = false;
 
@@ -551,8 +501,6 @@ async function start() {
 
   } catch (err) {
     console.error("[UI] Connection failed:", err);
-
-    // Handle specific errors
     if (err.message.includes('API key')) {
       setStatus("Error: Server API key not configured");
       alert("Server configuration error. Please check that ROBOFLOW_API_KEY is set in the .env file.");
@@ -582,13 +530,11 @@ async function stop() {
   } catch (err) {
     console.error("[UI] Cleanup error:", err);
   } finally {
-    // Reset UI
     activeConnection = null;
     videoEl.srcObject = null;
     startBtn.disabled = false;
     stopBtn.disabled = true;
     setStatus("Idle");
-    // Reset data preview
     dataMessageCount = 0;
     dataCountEl.textContent = "0";
     dataPreviewEl.textContent = "";
