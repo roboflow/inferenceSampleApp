@@ -5,7 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Roboflow WebRTC - Secure Streaming</title>
     <style>
-        :root { color-scheme: light dark; }
+        :root { 
+            color-scheme: light dark;
+            --accent: #4f46e5;
+            --accent-hover: #4338ca;
+            --surface: rgba(0, 0, 0, 0.03);
+            --border: rgba(0, 0, 0, 0.1);
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --surface: rgba(255, 255, 255, 0.05);
+                --border: rgba(255, 255, 255, 0.1);
+            }
+        }
         body {
             margin: 0;
             font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, sans-serif;
@@ -32,12 +44,12 @@
             border: 0;
             font-weight: 600;
             cursor: pointer;
-            background: #4f46e5;
+            background: var(--accent);
             color: white;
             font-size: 14px;
         }
         button:hover:not(:disabled) {
-            background: #4338ca;
+            background: var(--accent-hover);
         }
         button:disabled {
             opacity: 0.5;
@@ -47,9 +59,93 @@
             font-family: ui-monospace, Monaco, Consolas, monospace;
             font-size: 14px;
             padding: 8px 12px;
-            background: rgba(0, 0, 0, 0.05);
+            background: var(--surface);
             border-radius: 6px;
         }
+
+        /* Config Panel */
+        .config-panel {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            margin-bottom: 16px;
+            overflow: hidden;
+        }
+        .config-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            cursor: pointer;
+            user-select: none;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        .config-header:hover {
+            background: var(--border);
+        }
+        .config-header svg {
+            width: 20px;
+            height: 20px;
+            transition: transform 0.2s ease;
+        }
+        .config-panel.open .config-header svg {
+            transform: rotate(180deg);
+        }
+        .config-body {
+            display: none;
+            padding: 0 16px 16px;
+        }
+        .config-panel.open .config-body {
+            display: block;
+        }
+        .config-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        .config-field {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .config-field.full-width {
+            grid-column: 1 / -1;
+        }
+        .config-field label {
+            font-size: 12px;
+            font-weight: 500;
+            opacity: 0.7;
+        }
+        .config-field input {
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 14px;
+            background: transparent;
+            color: inherit;
+            font-family: ui-monospace, Monaco, Consolas, monospace;
+        }
+        .config-field input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+        }
+        .config-field input::placeholder {
+            opacity: 0.4;
+        }
+        .config-section-title {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            opacity: 0.5;
+            margin: 16px 0 8px;
+            font-weight: 600;
+        }
+        .config-section-title:first-child {
+            margin-top: 0;
+        }
+
         .video-container {
             margin-top: 20px;
             background: #000;
@@ -99,11 +195,58 @@
             font-size: 12px;
             opacity: 0.7;
         }
+        .footer a {
+            color: var(--accent);
+            text-decoration: none;
+            font-family: ui-monospace, Monaco, Consolas, monospace;
+        }
+        .footer a:hover {
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Roboflow WebRTC - Secure Streaming</h1>
+
+        <!-- Configuration Panel -->
+        <div class="config-panel open" id="configPanel">
+            <div class="config-header" onclick="document.getElementById('configPanel').classList.toggle('open')">
+                <span>⚙️ Stream Configuration</span>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
+                </svg>
+            </div>
+            <div class="config-body">
+                <div class="config-section-title">Workflow</div>
+                <div class="config-grid">
+                    <div class="config-field">
+                        <label for="workspaceName">Workspace Name</label>
+                        <input type="text" id="workspaceName" placeholder="your-workspace" value="balthasars-workspace">
+                    </div>
+                    <div class="config-field">
+                        <label for="workflowId">Workflow ID</label>
+                        <input type="text" id="workflowId" placeholder="my-workflow" value="custom-workflow-93">
+                    </div>
+                </div>
+
+                <div class="config-section-title">I/O Mapping</div>
+                <div class="config-grid">
+                    <div class="config-field">
+                        <label for="imageInputName">Image Input Name</label>
+                        <input type="text" id="imageInputName" placeholder="image" value="image">
+                    </div>
+                    <div class="config-field">
+                        <label for="streamOutputNames">Stream Output Names</label>
+                        <input type="text" id="streamOutputNames" placeholder="output_image" value="output_image">
+                    </div>
+                    <div class="config-field">
+                        <label for="dataOutputNames">Data Output Names</label>
+                        <input type="text" id="dataOutputNames" placeholder="predictions" value="predictions">
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <div class="controls">
             <button id="startBtn">Start Camera</button>
@@ -133,7 +276,7 @@
         </div>
 
         <div class="footer">
-            Powered by Roboflow InferenceJS
+            Powered by <a href="https://www.npmjs.com/package/@roboflow/inference-sdk" target="_blank" rel="noopener">@roboflow/inference-sdk</a>
         </div>
     </div>
 
