@@ -5,25 +5,67 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Roboflow WebRTC - Secure Streaming</title>
     <style>
-        :root { color-scheme: light dark; }
+        :root { 
+            color-scheme: light dark;
+            --accent: #4f46e5;
+            --accent-hover: #4338ca;
+            --surface: rgba(0, 0, 0, 0.03);
+            --border: rgba(0, 0, 0, 0.1);
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --surface: rgba(255, 255, 255, 0.05);
+                --border: rgba(255, 255, 255, 0.1);
+            }
+        }
         body {
             margin: 0;
             font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, sans-serif;
         }
         .container {
-            max-width: 720px;
+            max-width: 1400px;
             margin: 0 auto;
-            padding: 16px;
+            padding: 16px 24px;
         }
-        .controls {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin: 16px 0;
+        .header {
+            margin-bottom: 20px;
         }
         h1 {
             font-size: 24px;
             margin: 12px 0;
+        }
+        
+        /* Main layout - video left (2/3), settings right (1/3) */
+        .main-layout {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 24px;
+        }
+        @media (min-width: 1024px) {
+            .main-layout {
+                grid-template-columns: 2fr 1fr;
+            }
+        }
+        .video-column {
+            order: 1;
+        }
+        .settings-column {
+            order: 2;
+        }
+        @media (max-width: 1023px) {
+            .video-column {
+                order: 2;
+            }
+            .settings-column {
+                order: 1;
+            }
+        }
+        
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
         }
         button {
             appearance: none;
@@ -32,12 +74,12 @@
             border: 0;
             font-weight: 600;
             cursor: pointer;
-            background: #4f46e5;
+            background: var(--accent);
             color: white;
             font-size: 14px;
         }
         button:hover:not(:disabled) {
-            background: #4338ca;
+            background: var(--accent-hover);
         }
         button:disabled {
             opacity: 0.5;
@@ -47,11 +89,185 @@
             font-family: ui-monospace, Monaco, Consolas, monospace;
             font-size: 14px;
             padding: 8px 12px;
-            background: rgba(0, 0, 0, 0.05);
+            background: var(--surface);
             border-radius: 6px;
         }
+
+        /* Config Panel */
+        .config-panel {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            margin-bottom: 12px;
+            overflow: hidden;
+        }
+        .config-panel:last-child {
+            margin-bottom: 0;
+        }
+        .config-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            cursor: pointer;
+            user-select: none;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        .config-header:hover {
+            background: var(--border);
+        }
+        .config-header svg {
+            width: 20px;
+            height: 20px;
+            transition: transform 0.2s ease;
+        }
+        .config-panel.open .config-header svg {
+            transform: rotate(180deg);
+        }
+        .config-body {
+            display: none;
+            padding: 0 16px 16px;
+        }
+        .config-panel.open .config-body {
+            display: block;
+        }
+        .config-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        @media (min-width: 1024px) {
+            .settings-column .config-grid {
+                grid-template-columns: 1fr;
+            }
+            .settings-column .config-field.full-width {
+                grid-column: 1;
+            }
+        }
+        .config-field {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .config-field.full-width {
+            grid-column: 1 / -1;
+        }
+        .config-field label {
+            font-size: 12px;
+            font-weight: 500;
+            opacity: 0.7;
+        }
+        .config-field input {
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 14px;
+            background: transparent;
+            color: inherit;
+            font-family: ui-monospace, Monaco, Consolas, monospace;
+        }
+        .config-field input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+        }
+        .config-field input::placeholder {
+            opacity: 0.4;
+        }
+        .config-field select {
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 14px;
+            background: transparent;
+            color: inherit;
+            cursor: pointer;
+        }
+        .config-field select:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+        }
+        .config-field select:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .camera-caps {
+            font-size: 12px;
+            opacity: 0.6;
+            margin-top: 4px;
+            font-family: ui-monospace, Monaco, Consolas, monospace;
+        }
+        .camera-caps.loading {
+            color: var(--accent);
+        }
+        .config-section-title {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            opacity: 0.5;
+            margin: 16px 0 8px;
+            font-weight: 600;
+        }
+        .config-section-title:first-child {
+            margin-top: 0;
+        }
+
+        /* Tab bar */
+        .tab-bar {
+            display: flex;
+            gap: 0;
+            margin-bottom: 16px;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+        .tab-btn {
+            flex: 1;
+            padding: 10px 12px;
+            border: none;
+            background: transparent;
+            color: inherit;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            opacity: 0.6;
+            transition: all 0.15s ease;
+            border-radius: 0;
+        }
+        .tab-btn:hover {
+            opacity: 0.8;
+            background: var(--border);
+        }
+        .tab-btn.active {
+            opacity: 1;
+            background: var(--accent);
+            color: white;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .example-info {
+            font-size: 12px;
+            opacity: 0.7;
+            margin-bottom: 12px;
+            padding: 10px 12px;
+            background: var(--border);
+            border-radius: 6px;
+            line-height: 1.5;
+        }
+        .example-info code {
+            font-family: ui-monospace, Monaco, Consolas, monospace;
+            background: rgba(0,0,0,0.1);
+            padding: 1px 4px;
+            border-radius: 3px;
+        }
+
         .video-container {
-            margin-top: 20px;
             background: #000;
             border-radius: 12px;
             overflow: hidden;
@@ -62,13 +278,68 @@
             height: auto;
             display: block;
         }
+
+        /* Data Channel Preview */
+        .data-preview {
+            margin-top: 12px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .data-preview-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 12px;
+            font-size: 12px;
+            font-weight: 600;
+            opacity: 0.7;
+            border-bottom: 1px solid var(--border);
+        }
+        .data-preview-header span {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .data-preview-badge {
+            font-size: 10px;
+            padding: 2px 6px;
+            background: var(--accent);
+            color: white;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+        .data-preview-body {
+            padding: 10px 12px;
+            max-height: 150px;
+            overflow-y: auto;
+            font-family: ui-monospace, Monaco, Consolas, monospace;
+            font-size: 11px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-break: break-all;
+            color: inherit;
+            opacity: 0.8;
+        }
+        .data-preview-body:empty::before {
+            content: "Waiting for data...";
+            opacity: 0.4;
+            font-style: italic;
+        }
+
         .info {
-            margin-top: 20px;
+            margin-top: 24px;
             padding: 16px;
             background: rgba(34, 197, 94, 0.08);
             border-radius: 8px;
             font-size: 14px;
             line-height: 1.6;
+        }
+        @media (min-width: 1024px) {
+            .info {
+                margin-top: 20px;
+            }
         }
         .info h3 {
             margin: 0 0 8px 0;
@@ -94,46 +365,212 @@
             margin-bottom: 12px;
         }
         .footer {
-            margin: 20px 0;
+            margin: 32px 0 20px;
             text-align: center;
             font-size: 12px;
             opacity: 0.7;
+        }
+        .footer a {
+            color: var(--accent);
+            text-decoration: none;
+            font-family: ui-monospace, Monaco, Consolas, monospace;
+        }
+        .footer a:hover {
+            text-decoration: underline;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Roboflow WebRTC - Secure Streaming</h1>
-
-        <div class="controls">
-            <button id="startBtn">Start Camera</button>
-            <button id="stopBtn" disabled>Stop</button>
-            <div id="status">Idle</div>
+        <div class="header">
+            <h1>Roboflow WebRTC - Secure Streaming</h1>
         </div>
 
-        <div class="video-container">
-            <video id="video" autoplay playsinline muted></video>
-        </div>
+        <div class="main-layout">
+            <!-- Video Column (Left on desktop, bottom on mobile) -->
+            <div class="video-column">
+                <div class="controls">
+                    <button id="startBtn">Start Camera</button>
+                    <button id="stopBtn" disabled>Stop</button>
+                    <div id="status">Idle</div>
+                </div>
 
-        <div class="info">
-            <div class="security-badge">
-                🔒 Secure Mode
+                <div class="video-container">
+                    <video id="video" autoplay playsinline muted></video>
+                </div>
+
+                <div class="data-preview">
+                    <div class="data-preview-header">
+                        <span>📡 Data Channel</span>
+                        <span class="data-preview-badge" id="dataCount">0</span>
+                    </div>
+                    <div class="data-preview-body" id="dataPreview"></div>
+                </div>
+
+                <div class="info">
+                    <div class="security-badge">
+                        🔒 Secure Mode
+                    </div>
+                    <h3>Production-Ready WebRTC Streaming</h3>
+                    <p>
+                        This example uses <code>connectors.withProxyUrl()</code> to keep your API key secure on the backend.
+                        The frontend never sees your API key - all communication with Roboflow is proxied through your Express server.
+                    </p>
+                    <ul style="margin: 8px 0;">
+                        <li>✅ API key stays on server</li>
+                        <li>✅ Production-ready security</li>
+                        <li>✅ Easy to deploy</li>
+                        <li>✅ Using npm package imports</li>
+                    </ul>
+                </div>
             </div>
-            <h3>Production-Ready WebRTC Streaming</h3>
-            <p>
-                This example uses <code>connectors.withProxyUrl()</code> to keep your API key secure on the backend.
-                The frontend never sees your API key - all communication with Roboflow is proxied through your Express server.
-            </p>
-            <ul style="margin: 8px 0;">
-                <li>✅ API key stays on server</li>
-                <li>✅ Production-ready security</li>
-                <li>✅ Easy to deploy</li>
-                <li>✅ Using npm package imports</li>
-            </ul>
+
+            <!-- Settings Column (Right on desktop, top on mobile) -->
+            <div class="settings-column">
+                <!-- Workflow Settings Panel -->
+                <div class="config-panel open" id="workflowPanel">
+                    <div class="config-header" onclick="document.getElementById('workflowPanel').classList.toggle('open')">
+                        <span>🔧 Workflow Settings</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
+                        </svg>
+                    </div>
+                    <div class="config-body">
+                        <!-- Tab Bar -->
+                        <div class="tab-bar">
+                            <button type="button" class="tab-btn active" data-tab="example">Example (RF-DETR)</button>
+                            <button type="button" class="tab-btn" data-tab="custom">Custom Workflow</button>
+                        </div>
+
+                        <!-- Example Tab -->
+                        <div class="tab-content active" id="tab-example">
+                            <div class="example-info">
+                                Uses <code>rfdetr-nano</code> for object detection with bounding box visualization. No setup required.
+                            </div>
+                            <div class="config-section-title">I/O Mapping</div>
+                            <div class="config-grid">
+                            <div class="config-field full-width">
+                                <label for="exampleStreamOutput">Stream Output</label>
+                                <select id="exampleStreamOutput">
+                                    <option value="labels">Labels + Bounding Boxes</option>
+                                    <option value="blur">Blur Visualization</option>
+                                </select>
+                            </div>
+                            </div>
+                        </div>
+
+                        <!-- Custom Workflow Tab -->
+                        <div class="tab-content" id="tab-custom">
+                            <div class="config-section-title">Workflow</div>
+                            <div class="config-grid">
+                                <div class="config-field full-width">
+                                    <label for="workspaceName">Workspace Name</label>
+                                    <input type="text" id="workspaceName" placeholder="your-workspace">
+                                </div>
+                                <div class="config-field full-width">
+                                    <label for="workflowId">Workflow ID</label>
+                                    <input type="text" id="workflowId" placeholder="my-workflow">
+                                </div>
+                            </div>
+
+                            <div class="config-section-title">I/O Mapping</div>
+                            <div class="config-grid">
+                                <div class="config-field full-width">
+                                    <label for="imageInputName">Image Input Name</label>
+                                    <input type="text" id="imageInputName" placeholder="image" value="image">
+                                </div>
+                                <div class="config-field full-width">
+                                    <label for="streamOutputNames">Stream Output Names</label>
+                                    <input type="text" id="streamOutputNames" placeholder="output_image">
+                                </div>
+                                <div class="config-field full-width">
+                                    <label for="dataOutputNames">Data Output Names</label>
+                                    <input type="text" id="dataOutputNames" placeholder="predictions">
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- Stream Settings Panel -->
+                <div class="config-panel open" id="streamPanel">
+                    <div class="config-header" onclick="document.getElementById('streamPanel').classList.toggle('open')">
+                        <span>🌐 Stream Settings</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
+                        </svg>
+                    </div>
+                    <div class="config-body">
+                        <div class="config-section-title">Server</div>
+                        <div class="config-grid">
+                            <div class="config-field full-width">
+                                <label for="requestedRegion">Region</label>
+                                <select id="requestedRegion">
+                                    <option value="us">US</option>
+                                    <option value="eu">EU</option>
+                                    <option value="ap">AP</option>
+                                </select>
+                            </div>
+                            <div class="config-field full-width">
+                                <label for="requestedPlan">Plan</label>
+                                <select id="requestedPlan">
+                                    <option value="webrtc-gpu-small">GPU Small</option>
+                                </select>
+                            </div>
+                            <div class="config-field full-width">
+                                <label for="processingTimeout">Timeout</label>
+                                <select id="processingTimeout">
+                                    <option value="600">10 minutes</option>
+                                    <option value="3600">60 minutes</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Camera Settings Panel -->
+                <div class="config-panel open" id="cameraPanel">
+                    <div class="config-header" onclick="document.getElementById('cameraPanel').classList.toggle('open')">
+                        <span>📷 Camera Settings</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
+                        </svg>
+                    </div>
+                    <div class="config-body">
+                        <div class="config-section-title">Device</div>
+                        <div class="config-grid">
+                            <div class="config-field full-width">
+                                <label for="cameraSelect">Camera</label>
+                                <select id="cameraSelect" disabled>
+                                    <option value="">Loading cameras...</option>
+                                </select>
+                                <div class="camera-caps" id="cameraCaps"></div>
+                            </div>
+                        </div>
+
+                        <div class="config-section-title">Resolution & Frame Rate</div>
+                        <div class="config-grid">
+                            <div class="config-field">
+                                <label for="resolutionSelect">Resolution</label>
+                                <select id="resolutionSelect" disabled>
+                                    <option value="">Select camera first</option>
+                                </select>
+                            </div>
+                            <div class="config-field">
+                                <label for="fpsSelect">Frame Rate</label>
+                                <select id="fpsSelect" disabled>
+                                    <option value="">Select camera first</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <div class="footer">
-            Powered by Roboflow InferenceJS
+            Powered by <a href="https://www.npmjs.com/package/@roboflow/inference-sdk" target="_blank" rel="noopener">@roboflow/inference-sdk</a>
         </div>
     </div>
 
