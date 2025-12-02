@@ -23,19 +23,49 @@
             font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, sans-serif;
         }
         .container {
-            max-width: 720px;
+            max-width: 1400px;
             margin: 0 auto;
-            padding: 16px;
+            padding: 16px 24px;
         }
-        .controls {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin: 16px 0;
+        .header {
+            margin-bottom: 20px;
         }
         h1 {
             font-size: 24px;
             margin: 12px 0;
+        }
+        
+        /* Main layout - video left (2/3), settings right (1/3) */
+        .main-layout {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 24px;
+        }
+        @media (min-width: 1024px) {
+            .main-layout {
+                grid-template-columns: 2fr 1fr;
+            }
+        }
+        .video-column {
+            order: 1;
+        }
+        .settings-column {
+            order: 2;
+        }
+        @media (max-width: 1023px) {
+            .video-column {
+                order: 2;
+            }
+            .settings-column {
+                order: 1;
+            }
+        }
+        
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
         }
         button {
             appearance: none;
@@ -68,8 +98,11 @@
             background: var(--surface);
             border: 1px solid var(--border);
             border-radius: 12px;
-            margin-bottom: 16px;
+            margin-bottom: 12px;
             overflow: hidden;
+        }
+        .config-panel:last-child {
+            margin-bottom: 0;
         }
         .config-header {
             display: flex;
@@ -104,6 +137,14 @@
             grid-template-columns: 1fr 1fr;
             gap: 12px;
         }
+        @media (min-width: 1024px) {
+            .settings-column .config-grid {
+                grid-template-columns: 1fr;
+            }
+            .settings-column .config-field.full-width {
+                grid-column: 1;
+            }
+        }
         .config-field {
             display: flex;
             flex-direction: column;
@@ -134,6 +175,33 @@
         .config-field input::placeholder {
             opacity: 0.4;
         }
+        .config-field select {
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 14px;
+            background: transparent;
+            color: inherit;
+            cursor: pointer;
+        }
+        .config-field select:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+        }
+        .config-field select:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .camera-caps {
+            font-size: 12px;
+            opacity: 0.6;
+            margin-top: 4px;
+            font-family: ui-monospace, Monaco, Consolas, monospace;
+        }
+        .camera-caps.loading {
+            color: var(--accent);
+        }
         .config-section-title {
             font-size: 11px;
             text-transform: uppercase;
@@ -147,11 +215,17 @@
         }
 
         .video-container {
-            margin-top: 20px;
             background: #000;
             border-radius: 12px;
             overflow: hidden;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            aspect-ratio: 16 / 9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .video-container video {
+            object-fit: contain;
         }
         video {
             width: 100%;
@@ -159,12 +233,17 @@
             display: block;
         }
         .info {
-            margin-top: 20px;
+            margin-top: 24px;
             padding: 16px;
             background: rgba(34, 197, 94, 0.08);
             border-radius: 8px;
             font-size: 14px;
             line-height: 1.6;
+        }
+        @media (min-width: 1024px) {
+            .info {
+                margin-top: 20px;
+            }
         }
         .info h3 {
             margin: 0 0 8px 0;
@@ -190,7 +269,7 @@
             margin-bottom: 12px;
         }
         .footer {
-            margin: 20px 0;
+            margin: 32px 0 20px;
             text-align: center;
             font-size: 12px;
             opacity: 0.7;
@@ -207,72 +286,120 @@
 </head>
 <body>
     <div class="container">
-        <h1>Roboflow WebRTC - Secure Streaming</h1>
+        <div class="header">
+            <h1>Roboflow WebRTC - Secure Streaming</h1>
+        </div>
 
-        <!-- Configuration Panel -->
-        <div class="config-panel open" id="configPanel">
-            <div class="config-header" onclick="document.getElementById('configPanel').classList.toggle('open')">
-                <span>⚙️ Stream Configuration</span>
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
-                </svg>
-            </div>
-            <div class="config-body">
-                <div class="config-section-title">Workflow</div>
-                <div class="config-grid">
-                    <div class="config-field">
-                        <label for="workspaceName">Workspace Name</label>
-                        <input type="text" id="workspaceName" placeholder="your-workspace" value="balthasars-workspace">
+        <div class="main-layout">
+            <!-- Video Column (Left on desktop, bottom on mobile) -->
+            <div class="video-column">
+                <div class="controls">
+                    <button id="startBtn">Start Camera</button>
+                    <button id="stopBtn" disabled>Stop</button>
+                    <div id="status">Idle</div>
+                </div>
+
+                <div class="video-container">
+                    <video id="video" autoplay playsinline muted></video>
+                </div>
+
+                <div class="info">
+                    <div class="security-badge">
+                        🔒 Secure Mode
                     </div>
-                    <div class="config-field">
-                        <label for="workflowId">Workflow ID</label>
-                        <input type="text" id="workflowId" placeholder="my-workflow" value="custom-workflow-93">
+                    <h3>Production-Ready WebRTC Streaming</h3>
+                    <p>
+                        This example uses <code>connectors.withProxyUrl()</code> to keep your API key secure on the backend.
+                        The frontend never sees your API key - all communication with Roboflow is proxied through your Express server.
+                    </p>
+                    <ul style="margin: 8px 0;">
+                        <li>✅ API key stays on server</li>
+                        <li>✅ Production-ready security</li>
+                        <li>✅ Easy to deploy</li>
+                        <li>✅ Using npm package imports</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Settings Column (Right on desktop, top on mobile) -->
+            <div class="settings-column">
+                <!-- Workflow Settings Panel -->
+                <div class="config-panel open" id="workflowPanel">
+                    <div class="config-header" onclick="document.getElementById('workflowPanel').classList.toggle('open')">
+                        <span>🔧 Workflow Settings</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
+                        </svg>
+                    </div>
+                    <div class="config-body">
+                        <div class="config-section-title">Workflow</div>
+                        <div class="config-grid">
+                            <div class="config-field">
+                                <label for="workspaceName">Workspace Name</label>
+                                <input type="text" id="workspaceName" placeholder="your-workspace" value="balthasars-workspace">
+                            </div>
+                            <div class="config-field">
+                                <label for="workflowId">Workflow ID</label>
+                                <input type="text" id="workflowId" placeholder="my-workflow" value="custom-workflow-93">
+                            </div>
+                        </div>
+
+                        <div class="config-section-title">I/O Mapping</div>
+                        <div class="config-grid">
+                            <div class="config-field full-width">
+                                <label for="imageInputName">Image Input Name</label>
+                                <input type="text" id="imageInputName" placeholder="image" value="image">
+                            </div>
+                            <div class="config-field full-width">
+                                <label for="streamOutputNames">Stream Output Names</label>
+                                <input type="text" id="streamOutputNames" placeholder="label_visualization" value="label_visualization">
+                            </div>
+                            <div class="config-field full-width">
+                                <label for="dataOutputNames">Data Output Names</label>
+                                <input type="text" id="dataOutputNames" placeholder="predictions" value="predictions">
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <div class="config-section-title">I/O Mapping</div>
-                <div class="config-grid">
-                    <div class="config-field">
-                        <label for="imageInputName">Image Input Name</label>
-                        <input type="text" id="imageInputName" placeholder="image" value="image">
+                <!-- Camera Settings Panel -->
+                <div class="config-panel open" id="cameraPanel">
+                    <div class="config-header" onclick="document.getElementById('cameraPanel').classList.toggle('open')">
+                        <span>📷 Camera Settings</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
+                        </svg>
                     </div>
-                    <div class="config-field">
-                        <label for="streamOutputNames">Stream Output Names</label>
-                        <input type="text" id="streamOutputNames" placeholder="label_visualization" value="label_visualization">
-                    </div>
-                    <div class="config-field">
-                        <label for="dataOutputNames">Data Output Names</label>
-                        <input type="text" id="dataOutputNames" placeholder="predictions" value="predictions">
+                    <div class="config-body">
+                        <div class="config-section-title">Device</div>
+                        <div class="config-grid">
+                            <div class="config-field full-width">
+                                <label for="cameraSelect">Camera</label>
+                                <select id="cameraSelect" disabled>
+                                    <option value="">Loading cameras...</option>
+                                </select>
+                                <div class="camera-caps" id="cameraCaps"></div>
+                            </div>
+                        </div>
+
+                        <div class="config-section-title">Resolution & Frame Rate</div>
+                        <div class="config-grid">
+                            <div class="config-field">
+                                <label for="resolutionSelect">Resolution</label>
+                                <select id="resolutionSelect" disabled>
+                                    <option value="">Select camera first</option>
+                                </select>
+                            </div>
+                            <div class="config-field">
+                                <label for="fpsSelect">Frame Rate</label>
+                                <select id="fpsSelect" disabled>
+                                    <option value="">Select camera first</option>
+                                </select>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
-
-        <div class="controls">
-            <button id="startBtn">Start Camera</button>
-            <button id="stopBtn" disabled>Stop</button>
-            <div id="status">Idle</div>
-        </div>
-
-        <div class="video-container">
-            <video id="video" autoplay playsinline muted></video>
-        </div>
-
-        <div class="info">
-            <div class="security-badge">
-                🔒 Secure Mode
-            </div>
-            <h3>Production-Ready WebRTC Streaming</h3>
-            <p>
-                This example uses <code>connectors.withProxyUrl()</code> to keep your API key secure on the backend.
-                The frontend never sees your API key - all communication with Roboflow is proxied through your Express server.
-            </p>
-            <ul style="margin: 8px 0;">
-                <li>✅ API key stays on server</li>
-                <li>✅ Production-ready security</li>
-                <li>✅ Easy to deploy</li>
-                <li>✅ Using npm package imports</li>
-            </ul>
         </div>
 
         <div class="footer">

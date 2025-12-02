@@ -13,7 +13,7 @@ const stopBtn = document.getElementById("stopBtn");
 const statusEl = document.getElementById("status");
 const videoEl = document.getElementById("video");
 
-// Config inputs
+// Config inputs - Workflow
 const configInputs = {
   workspaceName: document.getElementById("workspaceName"),
   workflowId: document.getElementById("workflowId"),
@@ -22,11 +22,22 @@ const configInputs = {
   dataOutputNames: document.getElementById("dataOutputNames")
 };
 
+// Config inputs - Camera
+const cameraInputs = {
+  cameraSelect: document.getElementById("cameraSelect"),
+  resolutionSelect: document.getElementById("resolutionSelect"),
+  fpsSelect: document.getElementById("fpsSelect"),
+  cameraCaps: document.getElementById("cameraCaps")
+};
+
 // Track active connection
 let activeConnection = null;
 
+// Store camera capabilities
+let cameraCapabilities = null;
+
 /**
- * Get current configuration from form inputs
+ * Get current workflow configuration from form inputs
  */
 function getConfig() {
   return {
@@ -38,6 +49,242 @@ function getConfig() {
     dataOutputNames: (configInputs.dataOutputNames?.value?.trim() || "predictions")
       .split(",").map(s => s.trim()).filter(Boolean)
   };
+}
+
+/**
+ * Get current camera configuration from form inputs
+ */
+function getCameraConfig() {
+  const resolution = cameraInputs.resolutionSelect?.value?.split("x") || [];
+  const fps = parseInt(cameraInputs.fpsSelect?.value) || 30;
+  
+  return {
+    deviceId: cameraInputs.cameraSelect?.value || undefined,
+    width: resolution[0] ? parseInt(resolution[0]) : 640,
+    height: resolution[1] ? parseInt(resolution[1]) : 480,
+    frameRate: fps
+  };
+}
+
+/**
+ * Enumerate available video input devices (cameras)
+ */
+async function enumerateCameras() {
+  try {
+    // Request permission first to get device labels
+    const tempStream = await navigator.mediaDevices.getUserMedia({ video: true });
+    tempStream.getTracks().forEach(track => track.stop());
+    
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const cameras = devices.filter(device => device.kind === "videoinput");
+    
+    console.log("[Camera] Found devices:", cameras);
+    
+    // Populate camera dropdown
+    cameraInputs.cameraSelect.innerHTML = "";
+    
+    if (cameras.length === 0) {
+      cameraInputs.cameraSelect.innerHTML = '<option value="">No cameras found</option>';
+      return;
+    }
+    
+    cameras.forEach((camera, index) => {
+      const option = document.createElement("option");
+      option.value = camera.deviceId;
+      option.textContent = camera.label || `Camera ${index + 1}`;
+      cameraInputs.cameraSelect.appendChild(option);
+    });
+    
+    cameraInputs.cameraSelect.disabled = false;
+    
+    // Automatically get capabilities for first camera
+    if (cameras.length > 0) {
+      await getCameraCapabilities(cameras[0].deviceId);
+    }
+    
+  } catch (err) {
+    console.error("[Camera] Failed to enumerate devices:", err);
+    cameraInputs.cameraSelect.innerHTML = '<option value="">Camera access denied</option>';
+    cameraInputs.cameraCaps.textContent = "Grant camera permission to see available devices";
+  }
+}
+
+/**
+ * Get capabilities (resolutions, frame rates) for a specific camera
+ */
+async function getCameraCapabilities(deviceId) {
+  cameraInputs.cameraCaps.textContent = "Detecting capabilities...";
+  cameraInputs.cameraCaps.classList.add("loading");
+  cameraInputs.resolutionSelect.disabled = true;
+  cameraInputs.fpsSelect.disabled = true;
+  
+  try {
+    // Get a stream from the specific device to access capabilities
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { deviceId: { exact: deviceId } }
+    });
+    
+    const track = stream.getVideoTracks()[0];
+    const capabilities = track.getCapabilities();
+    const settings = track.getSettings();
+    
+    console.log("[Camera] Capabilities:", capabilities);
+    console.log("[Camera] Current settings:", settings);
+    
+    // Store capabilities
+    cameraCapabilities = capabilities;
+    
+    // Stop the stream
+    stream.getTracks().forEach(t => t.stop());
+    
+    // Populate resolution dropdown
+    populateResolutions(capabilities, settings);
+    
+    // Populate FPS dropdown
+    populateFrameRates(capabilities, settings);
+    
+    // Show capability summary
+    const summary = [];
+    if (capabilities.width && capabilities.height) {
+      summary.push(`${capabilities.width.min}×${capabilities.height.min} - ${capabilities.width.max}×${capabilities.height.max}`);
+    }
+    if (capabilities.frameRate) {
+      summary.push(`${capabilities.frameRate.min}-${capabilities.frameRate.max} fps`);
+    }
+    cameraInputs.cameraCaps.textContent = summary.join(" • ") || "Capabilities detected";
+    cameraInputs.cameraCaps.classList.remove("loading");
+    
+  } catch (err) {
+    console.error("[Camera] Failed to get capabilities:", err);
+    cameraInputs.cameraCaps.textContent = "Failed to detect capabilities";
+    cameraInputs.cameraCaps.classList.remove("loading");
+    
+    // Set default options
+    setDefaultCameraOptions();
+  }
+}
+
+/**
+ * Generate common resolutions within camera capabilities
+ */
+function populateResolutions(capabilities, currentSettings) {
+  const commonResolutions = [
+    { w: 3840, h: 2160, label: "4K (3840×2160)" },
+    { w: 2560, h: 1440, label: "QHD (2560×1440)" },
+    { w: 1920, h: 1080, label: "1080p (1920×1080)" },
+    { w: 1280, h: 720, label: "720p (1280×720)" },
+    { w: 854, h: 480, label: "480p (854×480)" },
+    { w: 640, h: 480, label: "VGA (640×480)" },
+    { w: 640, h: 360, label: "360p (640×360)" },
+    { w: 320, h: 240, label: "QVGA (320×240)" }
+  ];
+  
+  cameraInputs.resolutionSelect.innerHTML = "";
+  
+  const maxW = capabilities.width?.max || 1920;
+  const maxH = capabilities.height?.max || 1080;
+  const minW = capabilities.width?.min || 320;
+  const minH = capabilities.height?.min || 240;
+  
+  // Filter resolutions that fit within camera capabilities
+  const availableResolutions = commonResolutions.filter(
+    res => res.w >= minW && res.w <= maxW && res.h >= minH && res.h <= maxH
+  );
+  
+  // Add "Max" option if it's not a standard resolution
+  const maxIsStandard = availableResolutions.some(r => r.w === maxW && r.h === maxH);
+  if (!maxIsStandard && maxW && maxH) {
+    availableResolutions.unshift({ w: maxW, h: maxH, label: `Max (${maxW}×${maxH})` });
+  }
+  
+  if (availableResolutions.length === 0) {
+    availableResolutions.push({ w: 640, h: 480, label: "VGA (640×480)" });
+  }
+  
+  availableResolutions.forEach(res => {
+    const option = document.createElement("option");
+    option.value = `${res.w}x${res.h}`;
+    option.textContent = res.label;
+    cameraInputs.resolutionSelect.appendChild(option);
+  });
+  
+  // Select current or closest resolution
+  const currentRes = `${currentSettings.width}x${currentSettings.height}`;
+  const hasCurrentRes = availableResolutions.some(r => `${r.w}x${r.h}` === currentRes);
+  
+  if (hasCurrentRes) {
+    cameraInputs.resolutionSelect.value = currentRes;
+  } else {
+    // Default to 720p or first available
+    const default720 = availableResolutions.find(r => r.w === 1280 && r.h === 720);
+    if (default720) {
+      cameraInputs.resolutionSelect.value = "1280x720";
+    }
+  }
+  
+  cameraInputs.resolutionSelect.disabled = false;
+}
+
+/**
+ * Generate frame rate options within camera capabilities
+ */
+function populateFrameRates(capabilities, currentSettings) {
+  const commonFps = [60, 30, 24, 15, 10];
+  
+  cameraInputs.fpsSelect.innerHTML = "";
+  
+  const maxFps = capabilities.frameRate?.max || 30;
+  const minFps = capabilities.frameRate?.min || 1;
+  
+  // Filter FPS values that fit within camera capabilities
+  const availableFps = commonFps.filter(fps => fps >= minFps && fps <= maxFps);
+  
+  // Add max if not standard
+  if (!availableFps.includes(Math.floor(maxFps)) && maxFps > 0) {
+    availableFps.unshift(Math.floor(maxFps));
+  }
+  
+  // Sort descending
+  availableFps.sort((a, b) => b - a);
+  
+  if (availableFps.length === 0) {
+    availableFps.push(30);
+  }
+  
+  availableFps.forEach(fps => {
+    const option = document.createElement("option");
+    option.value = fps;
+    option.textContent = `${fps} fps`;
+    cameraInputs.fpsSelect.appendChild(option);
+  });
+  
+  // Select current or default to 30fps
+  const currentFps = Math.round(currentSettings.frameRate);
+  if (availableFps.includes(currentFps)) {
+    cameraInputs.fpsSelect.value = currentFps;
+  } else if (availableFps.includes(30)) {
+    cameraInputs.fpsSelect.value = 30;
+  }
+  
+  cameraInputs.fpsSelect.disabled = false;
+}
+
+/**
+ * Set default camera options when capabilities can't be detected
+ */
+function setDefaultCameraOptions() {
+  cameraInputs.resolutionSelect.innerHTML = `
+    <option value="1920x1080">1080p (1920×1080)</option>
+    <option value="1280x720" selected>720p (1280×720)</option>
+    <option value="640x480">VGA (640×480)</option>
+  `;
+  cameraInputs.fpsSelect.innerHTML = `
+    <option value="30" selected>30 fps</option>
+    <option value="24">24 fps</option>
+    <option value="15">15 fps</option>
+  `;
+  cameraInputs.resolutionSelect.disabled = false;
+  cameraInputs.fpsSelect.disabled = false;
 }
 
 // Workflow specification for instance segmentation demo
@@ -120,22 +367,34 @@ function setStatus(text) {
 async function connectWebcamToRoboflowWebRTC(options = {}) {
   const { onData } = options;
 
-  // Get configuration from form
+  // Get configuration from forms
   const config = getConfig();
-  console.log("[Config] Using:", config);
+  const cameraConfig = getCameraConfig();
+  
+  console.log("[Config] Workflow:", config);
+  console.log("[Config] Camera:", cameraConfig);
 
   // Create connector that uses backend proxy (keeps API key secure)
   const connector = connectors.withProxyUrl('/api/init-webrtc');
 
+  // Build video constraints from camera config
+  const videoConstraints = {
+    width: { ideal: cameraConfig.width },
+    height: { ideal: cameraConfig.height },
+    frameRate: { ideal: cameraConfig.frameRate, max: cameraConfig.frameRate }
+  };
+  
+  // Add device ID if selected
+  if (cameraConfig.deviceId) {
+    videoConstraints.deviceId = { exact: cameraConfig.deviceId };
+  } else {
+    videoConstraints.facingMode = { ideal: "environment" };
+  }
+
   // Establish WebRTC connection
   const connection = await webrtc.useStream({
     source: await streams.useCamera({
-      video: {
-        facingMode: { ideal: "environment" },
-        width: { ideal: 640 },
-        height: { ideal: 480 },
-        frameRate: { ideal: 30, max: 30 }
-      },
+      video: videoConstraints,
       audio: false
     }),
     connector: connector,
@@ -242,6 +501,17 @@ async function stop() {
 // Attach event listeners
 startBtn.addEventListener("click", start);
 stopBtn.addEventListener("click", stop);
+
+// Camera selection change handler
+cameraInputs.cameraSelect.addEventListener("change", async (e) => {
+  const deviceId = e.target.value;
+  if (deviceId) {
+    await getCameraCapabilities(deviceId);
+  }
+});
+
+// Initialize camera enumeration on load
+enumerateCameras();
 
 // Cleanup on page unload
 window.addEventListener("pagehide", () => {
