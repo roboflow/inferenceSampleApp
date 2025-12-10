@@ -93,7 +93,8 @@ app.post('/api/init-webrtc', async (req, res) => {
         threadPoolWorkers: wrtcParams.threadPoolWorkers,
         processingTimeout: wrtcParams.processingTimeout,
         requestedPlan: wrtcParams.requestedPlan,
-        requestedRegion: wrtcParams.requestedRegion
+        requestedRegion: wrtcParams.requestedRegion,
+        iceServers: wrtcParams.iceServers
       }
     });
 
@@ -128,6 +129,42 @@ app.get('/api/health', (req, res) => {
       ? 'Server is ready'
       : 'Warning: ROBOFLOW_API_KEY not configured'
   });
+});
+
+/**
+ * GET /api/turn-config
+ *
+ * Fetches TURN server configuration from Roboflow API.
+ * This improves WebRTC connectivity for users behind restrictive firewalls.
+ *
+ * Response:
+ *   - iceServers: Array of RTCIceServer configurations
+ */
+app.get('/api/turn-config', async (req, res) => {
+  try {
+    const apiKey = process.env.ROBOFLOW_API_KEY;
+    if (!apiKey) {
+      console.warn('[Server] TURN config requested but no API key configured');
+      return res.json({ iceServers: [] });
+    }
+
+    const serverUrl = process.env.ROBOFLOW_SERVER_URL;
+
+    const client = InferenceHTTPClient.init({
+      apiKey,
+      serverUrl
+    });
+
+    const iceServers = await client.fetchTurnConfig();
+
+    console.log('[Server] TURN config fetched:', iceServers ? 'success' : 'none available');
+
+    res.json({ iceServers: iceServers || [] });
+
+  } catch (error) {
+    console.error('[Server] Error fetching TURN config:', error);
+    res.json({ iceServers: [] });
+  }
 });
 
 // Setup Vite dev server or static files (AFTER API routes)

@@ -420,7 +420,9 @@ async function connectWebcamToRoboflowWebRTC(options = {}) {
   console.log("[Config] Workflow:", config);
   console.log("[Config] Camera:", cameraConfig);
 
-  const connector = connectors.withProxyUrl('/api/init-webrtc');
+  const connector = connectors.withProxyUrl('/api/init-webrtc', {
+    turnConfigUrl: '/api/turn-config'
+  });
   const videoConstraints = {
     width: { ideal: cameraConfig.width },
     height: { ideal: cameraConfig.height },
