@@ -18,7 +18,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@roboflow/inference-sdk": "^0.1.6",
+    "@roboflow/inference-sdk": "^0.1.7",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^4.18.2"
